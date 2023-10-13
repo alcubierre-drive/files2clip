@@ -29,6 +29,8 @@ static void cleanup_signal( int sig );
 static void* clipthread_fun( void* pthread_data );
 static void* filethread_fun( void* pthread_data );
 
+static size_t parse_mem( const char* str );
+
 // settings
 static char fifo_name[] = "/tmp/clipboard.fifo";
 static char dir_name[] = "/tmp/clipboard.dir";
@@ -46,16 +48,18 @@ int main(int argc, char** argv) {
     int opt;
     char pad[PATH_MAX];
     sprintf( pad, "%*c", strlen(argv[0]), ' ' );
-    while ((opt = getopt(argc, argv, "F:D:s:S:ph")) != -1) {
+    while ((opt = getopt(argc, argv, "F:D:s:S:pb:h")) != -1) {
         switch (opt) {
             case 'F': strcpy(fifo_name, optarg); break;
             case 'D': strcpy(dir_name, optarg); break;
             case 's': filethread_sleeptime = atoi(optarg); break;
             case 'S': clipthread_sleeptime = atoi(optarg); break;
             case 'p': clipboard_use_primary = 1; break;
+            case 'b': clipthread_bufsize = parse_mem(optarg); break;
             case 'h': fprintf(stderr, "usage: %s [-F <fifo file name>] [-D <dir name>]\n"
                                       "       %s [-s <file thread usleep>] [-S <clip thread usleep>]\n"
-                                      "       %s [-p: use primary]\n", argv[0], pad, pad);
+                                      "       %s [-p: use primary] [-b <clipboard memory size>]\n",
+                                      argv[0], pad, pad);
                       exit(EXIT_SUCCESS); break;
             case '?':
             default:
@@ -199,3 +203,27 @@ static void* filethread_fun( void* pthread_data ) {
     return NULL;
 }
 
+static size_t parse_mem( const char* str ) {
+    long int sz = -1;
+    char spec[2] = {0};
+    int nmatches = sscanf(str, "%li%1[KMGT]", &sz, spec);
+    if (nmatches == EOF || nmatches < 1) {
+        return clipthread_bufsize;
+    } else {
+        if (sz < 0)
+            return clipthread_bufsize;
+        if (nmatches != 1) {
+            while (*spec) {
+                sz *= 1024ul;
+                switch (*spec) {
+                    case 'T': *spec = 'G'; break;
+                    case 'G': *spec = 'M'; break;
+                    case 'M': *spec = 'K'; break;
+                    default:
+                    case 'K': *spec = '\0'; break;
+                }
+            }
+        }
+        return sz;
+    }
+}
