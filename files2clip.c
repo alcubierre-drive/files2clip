@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
 
     // set cleanup on interrupt
     signal(SIGINT, cleanup_signal);
+    signal(SIGTERM, cleanup_signal);
 
     // allocate buffer
     if ((buf = calloc(2,clipthread_bufsize)) == NULL) {
@@ -129,7 +130,7 @@ static void cleanup( void ) {
 }
 
 static void cleanup_signal( int sig ) {
-    if (sig == SIGINT) {
+    if (sig == SIGINT || sig == SIGTERM) {
         fprintf(stderr, "\nclip-server: shutting down\n");
         cleanup();
         exit(EXIT_SUCCESS);
